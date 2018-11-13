@@ -21,13 +21,17 @@ class LoadCell():
         """
         self.ard = ard
 
-    def read_force(self):
+    def read_force(self, cell=None):
         """
         Read the force from the load cell and print the results.
         """
-        self.ard.send_serial_line('r')
-        force = self.ard.read_serial_line()
-        print(force)
+        if cell in [1, 2, 3]:
+            command = 'r' + str(cell)
+            self.ard.send_serial_line(command)
+            force = self.ard.read_serial_line()
+        else:
+            raise Exception("cell should be an integer of either 1, 2 or 3")
+        return force
 
 if __name__=="__main__":
     ard = arduino.Arduino()

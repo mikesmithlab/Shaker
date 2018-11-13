@@ -45,6 +45,10 @@ void loop() {
                 Serial.println("Motor moves");
                 myMotor->step(steps_val, FORWARD, SINGLE);
               }
+              if (inBytes[2] == '-') { // -ve direction
+                Serial.println("Motor moves");
+                myMotor->step(steps_val, BACKWARD, SINGLE);
+              }
       }
     }
   }

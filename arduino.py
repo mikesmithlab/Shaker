@@ -8,13 +8,17 @@ Created on Wed Oct 4 09:32:00 2018
 import sys
 import serial
 import time
+import Generic.filedialogs as fd
 
 class Arduino:
 
-    def __init__(self, comport='/dev/ttyACM0'):
+    def __init__(self, port=None):
         """Open the selected serial port"""
         self.port = serial.Serial()
-        self.port.port = comport
+        if port:
+            self.port.port = port
+        else:
+            self.choose_port()
         self.port.baudrate = 9600
         self.port.timeout = 0
         if self.port.isOpen() == False:
@@ -25,6 +29,13 @@ class Arduino:
         else:
             print("Select a COMPORT")
         self.wait_for_ready()
+
+    def choose_port(self, os='linux'):
+        if os == 'linux':
+            self.port.port = fd.load_filename(
+                    'Choose a comport',
+                    directory='/dev/',
+                    file_filter='ttyA*')
 
     def wait_for_ready(self):
         """Ensure the arduino has initialised by waiting for the

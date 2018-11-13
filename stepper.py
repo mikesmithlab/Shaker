@@ -111,10 +111,8 @@ class Stepper():
         steps: int
         direction: either '+' or '-'
         """
-        motor_assignment = {1: 'A', 2:'B', 3:'C'}
-        message = 'M' + motor_assignment[1] + direction + str(steps) + '\n'
+        message = 'M' + str(motor_no) + direction + str(steps) + '\n'
         self.ard.send_serial_line(message)
-        print('done')
 
 
 if __name__ == '__main__':
