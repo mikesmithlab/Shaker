@@ -27,31 +27,21 @@ class Balancer():
         self.Stepper = stepper.Stepper(self.ard)
         self.LoadCell = loadcell.LoadCell(self.ard)
         self.webcam = camera.Camera(cam_type='philips 3', cam_num=cam_num)
-        self.crop_first_frame()
+        self.mask, self.crop, self.points = self.crop_first_frame()
+        self.corners = self.find_corners()
+        self.xc, self.yc = self.find_tray_center()
 
-    def view_center(self):
-        loopvar = True
-        while loopvar:
-            frame = self.get_frame()
-            frame, centroid = self.mark_center(frame)
-            self.find_instruction(centroid)
-            cv2.imshow('center', frame)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                cv2.destroyAllWindows()
-                loopvar=False
+    def crop_first_frame(self):
+        frame = self.webcam.single_pic_array()
+        crop_inst = images.CropShape(frame, self.no_of_sides)
+        mask, crop, points = crop_inst.begin_crop()
+        frame = images.crop_and_mask_image(frame, crop, mask, 'white')
+        images.display(frame)
+        return mask, crop, points
 
-    def find_instruction(self, centroid):
-        centroid = np.array(centroid).reshape(1, 2)
-        dist = ss.distance.cdist(centroid, self.corners)
-        closest = np.argmin(dist)
-        instructions = {0: 'raise 1', 1: 'raise 1 and 2', 2: 'raise 2',
-                        3: 'lower 1', 4: 'lower 1 and 2', 5: 'lower 2'}
-        print(instructions[closest])
-
-    @staticmethod
-    def find_corners(points):
-        if len(np.shape(points)) == 1:
-            cx, cy, r = points
+    def find_corners(self):
+        if len(np.shape(self.points)) == 1:
+            cx, cy, r = self.points
             sin30 = 0.5
             cos30 = np.sqrt(3)/2
             corners = np.array([[cx, cy-r],
@@ -61,17 +51,33 @@ class Balancer():
                                 [cx-r*cos30, cy+r*sin30],
                                 [cx-r*cos30, cy-r*sin30]])
         else:
-            corners = points
-
+            corners = self.points
+        corners[:, 0] -= self.crop[1, 0]
+        corners[:, 1] -= self.crop[0, 0]
         return corners
 
-    def mark_center(self, frame):
-        centroid = self.find_centroid(frame)
-        frame = images.draw_circle(frame, centroid[0], centroid[1], 5,
-                                   color=images.RED)
-        frame = images.draw_circle(frame, self.xc, self.yc, 3,
-                                   color=images.PINK)
-        return frame, centroid
+    def find_tray_center(self):
+        if len(np.shape(self.points)) > 1:
+            xc = np.mean(self.points[:, 0])
+            yc = np.mean(self.points[:, 1])
+        else:
+            xc = self.points[0]
+            yc = self.points[1]
+        xc -= self.crop[1, 0]
+        yc -= self.crop[0, 0]
+        return xc, yc
+
+    def view_center(self):
+        loopvar = True
+        while loopvar:
+            frame = self.get_frame()
+            centroid = self.find_particle_center(frame)
+            frame = self.mark_centers(frame, centroid)
+            self.find_instruction(centroid)
+            cv2.imshow('center', frame)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                cv2.destroyAllWindows()
+                loopvar=False
 
     def get_frame(self):
         frame = self.webcam.single_pic_array()
@@ -79,35 +85,31 @@ class Balancer():
                                            'white')
         return frame
 
-    def crop_first_frame(self):
-        frame = self.webcam.single_pic_array()
-        crop_inst = images.CropShape(frame, self.no_of_sides)
-        self.mask, self.crop, points = crop_inst.begin_crop()
-        if len(np.shape(points)) > 1:
-            self.xc = np.mean(points[:, 0])
-            self.yc = np.mean(points[:, 1])
-        else:
-            self.xc = points[0]
-            self.yc = points[1]
-        self.xc -= self.crop[1, 0]
-        self.yc -= self.crop[0, 0]
-        self.corners = self.find_corners(points)
-        self.corners[:, 0] -= self.crop[1, 0]
-        self.corners[:, 1] -= self.crop[0, 0]
-        first_frame = images.crop_and_mask_image(frame, self.crop, self.mask,
-                                                 mask_color='white')
-        images.display(first_frame, 'first')
+    @staticmethod
+    def find_particle_center(img):
+        img = images.bgr_2_grayscale(~img)
+        center = ndimage.measurements.center_of_mass(img)
+        return center[1], center[0]
+
+    def mark_center(self, frame, centroid):
+        frame = images.draw_circle(frame, centroid[0], centroid[1], 5,
+                                   color=images.RED)
+        frame = images.draw_circle(frame, self.xc, self.yc, 3,
+                                   color=images.PINK)
+        return frame
+
+    def find_instruction(self, centroid):
+        centroid = np.array(centroid).reshape(1, 2)
+        dist = ss.distance.cdist(centroid, self.corners)
+        closest = np.argmin(dist)
+        instructions = {0: 'raise 1', 1: 'raise 1 and 2', 2: 'raise 2',
+                        3: 'lower 1', 4: 'lower 1 and 2', 5: 'lower 2'}
+        print(instructions[closest])
 
     def read_forces(self, cell):
         """ Read the force from a load_cell"""
         force = self.LoadCell.read_force(cell=cell)
         return force
-
-    @staticmethod
-    def find_centroid(img):
-        img = images.bgr_2_grayscale(~img)
-        center = ndimage.measurements.center_of_mass(img)
-        return center[1], center[0]
 
     def move_motor(self, motor, steps, direction):
         """ Move a stepper motor """
