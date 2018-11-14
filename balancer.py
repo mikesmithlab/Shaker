@@ -30,6 +30,7 @@ class Balancer():
         self.mask, self.crop, self.points = self.crop_first_frame()
         self.corners = self.find_corners()
         self.xc, self.yc = self.find_tray_center()
+        self.level = False
 
     def crop_first_frame(self):
         frame = self.webcam.single_pic_array()
@@ -79,7 +80,17 @@ class Balancer():
                 cv2.destroyAllWindows()
                 loopvar=False
 
-    def time_average_center(self, num=10, delay=0.5):
+    def level_tray(self, interval_time=10, fail_time=30):
+        start_time = time.time()
+        while self.level == False:
+            time.sleep(interval_time)
+            self.time_average_center()
+            end_time = time.time()-start_time
+            if end_time > fail_time:
+                print('Levelling time out')
+                break
+
+    def time_average_center(self, num=10, delay=0.5, show=False):
         cx = []
         cy = []
         for r in range(num):
@@ -91,7 +102,8 @@ class Balancer():
         centroid = (np.mean(cx), np.mean(cy))
         frame = self.mark_centers(frame, centroid)
         self.find_instruction(centroid)
-        images.display(frame, 'time average center')
+        if show:
+            images.display(frame, 'time average center')
 
     def get_frame(self):
         frame = self.webcam.single_pic_array()
@@ -124,6 +136,7 @@ class Balancer():
             print(instructions[closest_corner])
         else:
             print('flat enough')
+            self.level = True
 
     def read_forces(self, cell):
         """ Read the force from a load_cell"""
@@ -146,5 +159,5 @@ if __name__=="__main__":
     #print(force)
     #bal.move_motor(1, 100, '-')
     #bal.view_center()
-    bal.time_average_center(delay=0.1)
+    bal.level_tray()
     bal.clean_up()
