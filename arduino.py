@@ -9,6 +9,7 @@ import sys
 import serial
 import time
 import Generic.filedialogs as fd
+import os
 
 class Arduino:
 
@@ -86,6 +87,15 @@ class Arduino:
             time.sleep(0.1)
         text = self.port.readline()
         return text.decode()
+
+def find_port():
+    items = os.listdir('/dev/')
+    newlist = []
+    for names in items:
+        if names.startswith("ttyA"):
+            newlist.append(names)
+    return newlist[0]
+
 
 if __name__=="__main__":
     ard = Arduino()
