@@ -79,6 +79,20 @@ class Balancer():
                 cv2.destroyAllWindows()
                 loopvar=False
 
+    def time_average_center(self, num=10, delay=0.5):
+        cx = []
+        cy = []
+        for r in range(num):
+            time.sleep(delay)
+            frame = self.get_frame()
+            centroid = self.find_particle_center(frame)
+            cx.append(centroid[0])
+            cy.append(centroid[1])
+        centroid = (np.mean(cx), np.mean(cy))
+        frame = self.mark_centers(frame, centroid)
+        self.find_instruction(centroid)
+        images.display(frame, 'time average center')
+
     def get_frame(self):
         frame = self.webcam.single_pic_array()
         frame = images.crop_and_mask_image(frame, self.crop, self.mask,
@@ -87,11 +101,11 @@ class Balancer():
 
     @staticmethod
     def find_particle_center(img):
-        img = images.bgr_2_grayscale(~img)
+        img = images.bgr_2_grayscale(255-img)
         center = ndimage.measurements.center_of_mass(img)
         return center[1], center[0]
 
-    def mark_center(self, frame, centroid):
+    def mark_centers(self, frame, centroid):
         frame = images.draw_circle(frame, centroid[0], centroid[1], 5,
                                    color=images.RED)
         frame = images.draw_circle(frame, self.xc, self.yc, 3,
@@ -101,10 +115,15 @@ class Balancer():
     def find_instruction(self, centroid):
         centroid = np.array(centroid).reshape(1, 2)
         dist = ss.distance.cdist(centroid, self.corners)
-        closest = np.argmin(dist)
+        closest_corner = np.argmin(dist)
         instructions = {0: 'raise 1', 1: 'raise 1 and 2', 2: 'raise 2',
                         3: 'lower 1', 4: 'lower 1 and 2', 5: 'lower 2'}
-        print(instructions[closest])
+        dist_to_center = np.sqrt((self.yc-centroid[0, 0])**2 +
+                                 (self.yc-centroid[0, 1])**2)
+        if dist_to_center > 15:
+            print(instructions[closest_corner])
+        else:
+            print('flat enough')
 
     def read_forces(self, cell):
         """ Read the force from a load_cell"""
@@ -126,5 +145,6 @@ if __name__=="__main__":
     #force = bal.read_forces(3)
     #print(force)
     #bal.move_motor(1, 100, '-')
-    bal.view_center()
+    #bal.view_center()
+    bal.time_average_center(delay=0.1)
     bal.clean_up()
