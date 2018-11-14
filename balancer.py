@@ -128,15 +128,36 @@ class Balancer():
         centroid = np.array(centroid).reshape(1, 2)
         dist = ss.distance.cdist(centroid, self.corners)
         closest_corner = np.argmin(dist)
-        instructions = {0: 'raise 1', 1: 'raise 1 and 2', 2: 'raise 2',
-                        3: 'lower 1', 4: 'lower 1 and 2', 5: 'lower 2'}
+        instructions = {0: 'raise motor 2',
+                        1: 'raise motors 1 and 2',
+                        2: 'raise motor 1',
+                        3: 'lower motor 2',
+                        4: 'lower motors 1 and 2',
+                        5: 'lower motor 1'}
         dist_to_center = np.sqrt((self.yc-centroid[0, 0])**2 +
                                  (self.yc-centroid[0, 1])**2)
         if dist_to_center > 15:
             print(instructions[closest_corner])
+            self.run_instruction(instructions[closest_corner])
         else:
             print('flat enough')
             self.level = True
+
+    def run_instruction(self, instruction):
+        if instruction == 'raise motor 1':
+            self.move_motor(1, 100, '+')
+        elif instruction == 'lower motor 1':
+            self.move_motor(1, 100, '-')
+        elif instruction == 'raise motor 2':
+            self.move_motor(2, 100, '+')
+        elif instruction == 'lower motor 2':
+            self.move_motor(2, 100, '-')
+        elif instruction == 'raise motors 1 and 2':
+            self.move_motor(1, 100, '+')
+            self.move_motor(2, 100, '+')
+        elif instruction == 'lower motors 1 and 2':
+            self.move_motor(1, 100, '-')
+            self.move_motor(2, 100, '-')
 
     def read_forces(self, cell):
         """ Read the force from a load_cell"""
