@@ -52,9 +52,9 @@ class Balancer():
                                 [cx-r*cos30, cy+r*sin30],
                                 [cx-r*cos30, cy-r*sin30]])
         else:
-            corners = self.points
-        corners[:, 0] -= self.crop[1, 0]
-        corners[:, 1] -= self.crop[0, 0]
+            corners = self.points.copy()
+        corners[:, 0] -= self.crop[0, 0]
+        corners[:, 1] -= self.crop[0, 1]
         return corners
 
     def find_tray_center(self):
@@ -66,8 +66,9 @@ class Balancer():
         else:
             xc = self.points[0]
             yc = self.points[1]
-            xc -= self.crop[1, 0]
-            yc -= self.crop[0, 0]
+            # self.crop = ([xmin, ymin], [xmax, ymax])
+        xc -= self.crop[0, 0] # -= xmin
+        yc -= self.crop[0, 1] # -= ymin
         return xc, yc
 
     def view_center(self):
