@@ -130,7 +130,6 @@ class Balancer():
         """ Draws the object center in red and actual center in pink"""
         frame = images.draw_circle(frame, centroid[0], centroid[1], 5,
                                    color=images.RED)
-        print(self.xc, self.yc)
         frame = images.draw_circle(frame, self.xc, self.yc, 3,
                                    color=images.PINK)
         return frame
