@@ -26,21 +26,21 @@ class Balancer():
         self.ard = arduino.Arduino('/dev/'+port)
         self.Stepper = stepper.Stepper(self.ard)
         self.LoadCell = loadcell.LoadCell(self.ard)
-        self.webcam = camera.Camera(cam_type='philips 3', cam_num=cam_num)
+        self.webcam = camera.Camera(cam_type='logitechHD1080p', cam_num=cam_num)
         self.mask, self.crop, self.points = self.crop_first_frame()
         self.corners = self.find_corners()
         self.xc, self.yc = self.find_tray_center()
         self.level = False
 
     def crop_first_frame(self):
+        """Finds the mask, crop and selection points for first frame"""
         frame = self.webcam.single_pic_array()
         crop_inst = images.CropShape(frame, self.no_of_sides)
         mask, crop, points = crop_inst.begin_crop()
-        frame = images.crop_and_mask_image(frame, crop, mask, 'white')
-        images.display(frame)
         return mask, crop, points
 
     def find_corners(self):
+        """Finds the 6 corners of the hexagonal base"""
         if len(np.shape(self.points)) == 1:
             cx, cy, r = self.points
             sin30 = 0.5
@@ -58,17 +58,20 @@ class Balancer():
         return corners
 
     def find_tray_center(self):
+        """Finds the center of the tray using the crop points"""
         if len(np.shape(self.points)) > 1:
             xc = np.mean(self.points[:, 0])
             yc = np.mean(self.points[:, 1])
+            print("check")
         else:
             xc = self.points[0]
             yc = self.points[1]
-        xc -= self.crop[1, 0]
-        yc -= self.crop[0, 0]
+            xc -= self.crop[1, 0]
+            yc -= self.crop[0, 0]
         return xc, yc
 
     def view_center(self):
+        """Shows live web cam view with the center marked"""
         loopvar = True
         while loopvar:
             frame = self.get_frame()
@@ -81,16 +84,19 @@ class Balancer():
                 loopvar=False
 
     def level_tray(self, interval_time=10, fail_time=30):
+        """Performs the levelling of the tray"""
         start_time = time.time()
         while self.level == False:
             time.sleep(interval_time)
-            self.time_average_center()
+            frame = self.time_average_center()
             end_time = time.time()-start_time
             if end_time > fail_time:
                 print('Levelling time out')
                 break
+        cv2.destroyAllWindows()
 
     def time_average_center(self, num=10, delay=0.5, show=False):
+        """Finds the center of the particles over time"""
         cx = []
         cy = []
         for r in range(num):
@@ -101,11 +107,11 @@ class Balancer():
             cy.append(centroid[1])
         centroid = (np.mean(cx), np.mean(cy))
         frame = self.mark_centers(frame, centroid)
-        self.find_instruction(centroid)
-        if show:
-            images.display(frame, 'time average center')
+        self.find_instruction(centroid, complete=True)
+        return frame
 
     def get_frame(self):
+        """Gets the current frame from the webcam"""
         frame = self.webcam.single_pic_array()
         frame = images.crop_and_mask_image(frame, self.crop, self.mask,
                                            'white')
@@ -113,18 +119,22 @@ class Balancer():
 
     @staticmethod
     def find_particle_center(img):
+        """Finds the center of mass of the particles"""
         img = images.bgr_2_grayscale(255-img)
+        img = images.threshold(img, 150, cv2.THRESH_TOZERO)
         center = ndimage.measurements.center_of_mass(img)
         return center[1], center[0]
 
     def mark_centers(self, frame, centroid):
+        """ Draws the object center in red and actual center in pink"""
         frame = images.draw_circle(frame, centroid[0], centroid[1], 5,
                                    color=images.RED)
+        print(self.xc, self.yc)
         frame = images.draw_circle(frame, self.xc, self.yc, 3,
                                    color=images.PINK)
         return frame
 
-    def find_instruction(self, centroid):
+    def find_instruction(self, centroid, complete=False):
         centroid = np.array(centroid).reshape(1, 2)
         dist = ss.distance.cdist(centroid, self.corners)
         closest_corner = np.argmin(dist)
@@ -138,7 +148,8 @@ class Balancer():
                                  (self.yc-centroid[0, 1])**2)
         if dist_to_center > 15:
             print(instructions[closest_corner])
-            self.run_instruction(instructions[closest_corner])
+            if complete:
+                self.run_instruction(instructions[closest_corner])
         else:
             print('flat enough')
             self.level = True
@@ -179,6 +190,6 @@ if __name__=="__main__":
     #force = bal.read_forces(3)
     #print(force)
     #bal.move_motor(1, 100, '-')
-    #bal.view_center()
-    bal.level_tray()
+    bal.view_center()
+    #bal.level_tray()
     bal.clean_up()
