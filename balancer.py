@@ -84,7 +84,7 @@ class Balancer():
                 cv2.destroyAllWindows()
                 loopvar=False
 
-    def level_tray(self, interval_time=10, fail_time=30):
+    def level_tray(self, interval_time=10, fail_time=600):
         """Performs the levelling of the tray"""
         start_time = time.time()
         while self.level == False:
@@ -156,19 +156,19 @@ class Balancer():
 
     def run_instruction(self, instruction):
         if instruction == 'raise motor 1':
-            self.move_motor(1, 100, '+')
+            self.move_motor(1, 400, '+')
         elif instruction == 'lower motor 1':
-            self.move_motor(1, 100, '-')
+            self.move_motor(1, 400, '-')
         elif instruction == 'raise motor 2':
-            self.move_motor(2, 100, '+')
+            self.move_motor(2, 400, '+')
         elif instruction == 'lower motor 2':
-            self.move_motor(2, 100, '-')
+            self.move_motor(2, 400, '-')
         elif instruction == 'raise motors 1 and 2':
-            self.move_motor(1, 100, '+')
-            self.move_motor(2, 100, '+')
+            self.move_motor(1, 400, '+')
+            self.move_motor(2, 400, '+')
         elif instruction == 'lower motors 1 and 2':
-            self.move_motor(1, 100, '-')
-            self.move_motor(2, 100, '-')
+            self.move_motor(1, 400, '-')
+            self.move_motor(2, 400, '-')
 
     def read_forces(self, cell):
         """ Read the force from a load_cell"""
@@ -190,6 +190,6 @@ if __name__=="__main__":
     #force = bal.read_forces(3)
     #print(force)
     #bal.move_motor(1, 100, '-')
-    bal.view_center()
-    #bal.level_tray()
+    # bal.view_center()
+    bal.level_tray()
     bal.clean_up()
