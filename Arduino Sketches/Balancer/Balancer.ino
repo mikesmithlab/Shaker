@@ -51,17 +51,21 @@ void loop() {
       if (inBytes[1] == '1') {
         if (inBytes[2] == '+') {
           myMotor1->step(steps_val, FORWARD, DOUBLE);
+          myMotor1->release();
         }
         if (inBytes[2] == '-') {
           myMotor1->step(steps_val, BACKWARD, DOUBLE);
+          myMotor1->release();
         }
       }
         if (inBytes[1] == '2') {
           if (inBytes[2] == '+') {
             myMotor2->step(steps_val, FORWARD, DOUBLE);
+            myMotor2->release();
           }
           if (inBytes[2] == '-') {
             myMotor2->step(steps_val, BACKWARD, DOUBLE);
+            myMotor2->release();
           } 
         }
     }  
