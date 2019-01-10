@@ -36,7 +36,7 @@ class Balancer():
         """Finds the mask, crop and selection points for first frame"""
         frame = self.webcam.single_pic_array()
         crop_inst = images.CropShape(frame, self.no_of_sides)
-        mask, crop, points = crop_inst.begin_crop()
+        mask, crop, points, _ = crop_inst.begin_crop()
         return mask, crop, points
 
     def find_corners(self):
@@ -76,15 +76,15 @@ class Balancer():
         loopvar = True
         while loopvar:
             frame = self.get_frame()
-            centroid = self.find_particle_center(frame)
-            frame = self.mark_centers(frame, centroid)
+            centroid, img = self.find_particle_center(frame)
+            frame = self.mark_centers(img, centroid)
             self.find_instruction(centroid)
             cv2.imshow('center', frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 cv2.destroyAllWindows()
                 loopvar=False
 
-    def level_tray(self, interval_time=10, fail_time=600):
+    def level_tray(self, interval_time=20, fail_time=36000):
         """Performs the levelling of the tray"""
         start_time = time.time()
         while self.level == False:
@@ -96,14 +96,14 @@ class Balancer():
                 break
         cv2.destroyAllWindows()
 
-    def time_average_center(self, num=10, delay=0.5, show=False):
+    def time_average_center(self, num=100, delay=.25):
         """Finds the center of the particles over time"""
         cx = []
         cy = []
         for r in range(num):
             time.sleep(delay)
             frame = self.get_frame()
-            centroid = self.find_particle_center(frame)
+            centroid, _ = self.find_particle_center(frame)
             cx.append(centroid[0])
             cy.append(centroid[1])
         centroid = (np.mean(cx), np.mean(cy))
@@ -122,9 +122,10 @@ class Balancer():
     def find_particle_center(img):
         """Finds the center of mass of the particles"""
         img = images.bgr_2_grayscale(255-img)
-        img = images.threshold(img, 150, cv2.THRESH_TOZERO)
+        img = images.threshold(img, mode=cv2.THRESH_TOZERO)
+        # images.display(img)
         center = ndimage.measurements.center_of_mass(img)
-        return center[1], center[0]
+        return (center[1], center[0]), img
 
     def mark_centers(self, frame, centroid):
         """ Draws the object center in red and actual center in pink"""
@@ -146,8 +147,9 @@ class Balancer():
                         5: 'lower motor 1'}
         dist_to_center = np.sqrt((self.yc-centroid[0, 0])**2 +
                                  (self.yc-centroid[0, 1])**2)
-        if dist_to_center > 15:
+        if dist_to_center > 10:
             print(instructions[closest_corner])
+            print(dist_to_center)
             if complete:
                 self.run_instruction(instructions[closest_corner])
         else:
@@ -156,19 +158,19 @@ class Balancer():
 
     def run_instruction(self, instruction):
         if instruction == 'raise motor 1':
-            self.move_motor(1, 400, '+')
+            self.move_motor(1, 200, '+')
         elif instruction == 'lower motor 1':
-            self.move_motor(1, 400, '-')
+            self.move_motor(1, 200, '-')
         elif instruction == 'raise motor 2':
-            self.move_motor(2, 400, '+')
+            self.move_motor(2, 200, '+')
         elif instruction == 'lower motor 2':
-            self.move_motor(2, 400, '-')
+            self.move_motor(2, 200, '-')
         elif instruction == 'raise motors 1 and 2':
-            self.move_motor(1, 400, '+')
-            self.move_motor(2, 400, '+')
+            self.move_motor(1, 200, '+')
+            self.move_motor(2, 200, '+')
         elif instruction == 'lower motors 1 and 2':
-            self.move_motor(1, 400, '-')
-            self.move_motor(2, 400, '-')
+            self.move_motor(1, 200, '-')
+            self.move_motor(2, 200, '-')
 
     def read_forces(self, cell):
         """ Read the force from a load_cell"""

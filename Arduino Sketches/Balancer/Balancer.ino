@@ -10,6 +10,7 @@
 WheatstoneBridge wsb_strain1(A0, 365, 675, 0, 1000);
 WheatstoneBridge wsb_strain2(A1, 365, 675, 0, 1000);
 WheatstoneBridge wsb_strain3(A2, 365, 675, 0, 1000);
+int recordPin = 2;
 
 // Create the motor shield object with the default I2C address
 Adafruit_MotorShield AFMS = Adafruit_MotorShield();
@@ -22,6 +23,7 @@ Adafruit_StepperMotor *myMotor2 = AFMS.getStepper(64, 2);
 void setup() {
   Serial.begin(9600);
   Serial.println("Ready");
+  pinMode(recordPin, OUTPUT);
 
   AFMS.begin(100); 
   myMotor1->setSpeed(10);
@@ -83,6 +85,18 @@ void loop() {
         load = wsb_strain3.measureForce();
         Serial.println(load, DEC);
       }
+    }
+    if (inBytes[0] == 'a') { // start recording
+      digitalWrite(recordPin, HIGH);
+      delay(200);
+      digitalWrite(recordPin, LOW);
+      Serial.println("Record");
+    }
+    if (inBytes[0] == 'b') {
+      digitalWrite(recordPin, HIGH);
+      delay(200);
+      digitalWrite(recordPin, LOW);
+      Serial.println("Stop");
     }
   }
 }
