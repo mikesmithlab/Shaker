@@ -7,10 +7,11 @@ import numpy as np
 import time
 import cv2
 from scipy import ndimage
+import matplotlib.pyplot as plt
 import scipy.spatial as ss
 
 
-class Balancer():
+class Balancer:
     """
     Class to balance the shaker using stepper motors and loadcells
     """
@@ -84,30 +85,40 @@ class Balancer():
                 cv2.destroyAllWindows()
                 loopvar=False
 
-    def level_tray(self, interval_time=20, fail_time=36000):
+    def level_tray(self, interval_time=5, fail_time=36000):
         """Performs the levelling of the tray"""
         start_time = time.time()
+        fig, ax = plt.subplots(1, 1)
+
+        i = 0
         while self.level == False:
-            time.sleep(interval_time)
             frame = self.time_average_center()
+            if i == 0:
+                im = ax.imshow(frame)
+                i += 1
+            else:
+                im.set_data(frame)
+            fig.canvas.draw_idle()
+            plt.pause(1)
+            time.sleep(interval_time)
             end_time = time.time()-start_time
             if end_time > fail_time:
                 print('Levelling time out')
                 break
         cv2.destroyAllWindows()
 
-    def time_average_center(self, num=100, delay=.25):
+    def time_average_center(self, num=10, delay=.1):
         """Finds the center of the particles over time"""
         cx = []
         cy = []
         for r in range(num):
             time.sleep(delay)
             frame = self.get_frame()
-            centroid, _ = self.find_particle_center(frame)
+            centroid, img = self.find_particle_center(frame)
             cx.append(centroid[0])
             cy.append(centroid[1])
         centroid = (np.mean(cx), np.mean(cy))
-        frame = self.mark_centers(frame, centroid)
+        frame = self.mark_centers(np.dstack((img, img, img)), centroid)
         self.find_instruction(centroid, complete=True)
         return frame
 
@@ -123,7 +134,6 @@ class Balancer():
         """Finds the center of mass of the particles"""
         img = images.bgr_2_grayscale(255-img)
         img = images.threshold(img, mode=cv2.THRESH_TOZERO)
-        # images.display(img)
         center = ndimage.measurements.center_of_mass(img)
         return (center[1], center[0]), img
 
@@ -147,7 +157,7 @@ class Balancer():
                         5: 'lower motor 1'}
         dist_to_center = np.sqrt((self.yc-centroid[0, 0])**2 +
                                  (self.yc-centroid[0, 1])**2)
-        if dist_to_center > 10:
+        if dist_to_center > 5:
             print(instructions[closest_corner])
             print(dist_to_center)
             if complete:
@@ -156,21 +166,21 @@ class Balancer():
             print('flat enough')
             self.level = True
 
-    def run_instruction(self, instruction):
+    def run_instruction(self, instruction, val=50):
         if instruction == 'raise motor 1':
-            self.move_motor(1, 200, '+')
+            self.move_motor(1, val, '+')
         elif instruction == 'lower motor 1':
-            self.move_motor(1, 200, '-')
+            self.move_motor(1, val, '-')
         elif instruction == 'raise motor 2':
-            self.move_motor(2, 200, '+')
+            self.move_motor(2, val, '+')
         elif instruction == 'lower motor 2':
-            self.move_motor(2, 200, '-')
+            self.move_motor(2, val, '-')
         elif instruction == 'raise motors 1 and 2':
-            self.move_motor(1, 200, '+')
-            self.move_motor(2, 200, '+')
+            self.move_motor(1, val, '+')
+            self.move_motor(2, val, '+')
         elif instruction == 'lower motors 1 and 2':
-            self.move_motor(1, 200, '-')
-            self.move_motor(2, 200, '-')
+            self.move_motor(1, val, '-')
+            self.move_motor(2, val, '-')
 
     def read_forces(self, cell):
         """ Read the force from a load_cell"""
