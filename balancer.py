@@ -18,9 +18,9 @@ class Balancer:
     def __init__(self, port=None, no_of_sides=None):
         """ Initise the Arduino, Stepper and LoadCell classes """
         cam_num = camera.find_camera_number()
-        if port == None:
+        if port is None:
             port = arduino.find_port()
-        if no_of_sides == None:
+        if no_of_sides is None:
             self.no_of_sides = int(input('Enter the number of sides: '))
         else:
             self.no_of_sides = no_of_sides
