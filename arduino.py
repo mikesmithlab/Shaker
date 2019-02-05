@@ -11,6 +11,16 @@ import time
 import Generic.filedialogs as fd
 import os
 
+"""
+If access to port is denied on linux then run the following command in the
+terminal:
+
+sudo adduser $USER dialout
+
+Login out and back in again for it to take effect.
+"""
+
+
 class Arduino:
 
     def __init__(self, port=None):
