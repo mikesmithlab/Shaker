@@ -8,13 +8,14 @@ from scipy import ndimage
 from scipy import spatial as sp
 import cv2
 import time
+import matplotlib.pyplot as plt
 
 class Balancer:
     """
     Class to balance the shaker using stepper motors and the slots
     """
 
-    def __init__(self, port=None, no_of_sides=None):
+    def __init__(self, port=None, no_of_sides=None, step_size=50):
         cam_num = camera.find_camera_number()
         if port is None:
             port = arduino.find_port()
@@ -29,6 +30,7 @@ class Balancer:
         self.hex, slots, self.center, self.contours, im = find_slots.find_regions(self.webcam.single_pic_array(), 10, 180)
         images.display(im)
         self.mask, self.masks = self.create_masks(slots)
+        self.step_size = step_size
 
     def create_masks(self, slots):
         im = self.webcam.single_pic_array()
@@ -42,16 +44,49 @@ class Balancer:
             masks.append(single_mask)
         return mask.astype(np.uint8), np.array(masks).astype(np.uint8)
 
-    def balance(self):
+    def balance(self, repeats=10, delay=1):
         balanced = False
         while balanced is False:
-            im = self.webcam.single_pic_array()
-            center, im = self.find_center(im)
+            centers = []
+            for f in range(repeats):
+                im = self.webcam.single_pic_array()
+                center, im = self.find_center(im)
+                centers.append(center)
+            center = np.mean(centers, axis=0)
+            self.distance = sp.distance.pdist([center, self.center])
             instruction = self.find_instruction(center)
+            print(instruction)
             im = self.annotate_frame(im, center, instruction)
             cv2.imshow('', im)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 balanced = True
+            if self.distance < 2:
+                balanced = True
+                print('Centre of mass distance less than 2 pixels')
+            else:
+                # self.run_instruction(instruction)
+                time.sleep(delay)
+
+    def run_instruction(self, inst):
+        val = self.step_size
+        if inst == 'Lower Motors 1 and 2':
+            self.move_motor(1, val, '-')
+            self.move_motor(2, val, '-')
+        elif inst == 'Lower Motor 1':
+            self.move_motor(1, val, '-')
+        elif inst == 'Raise Motor 2':
+            self.move_motor(2, val, '+')
+        elif inst == 'Raise Motors 1 and 2':
+            self.move_motor(1, val, '+')
+            self.move_motor(2, val, '+')
+        elif inst == 'Raise Motor 1':
+            self.move_motor(1, val, '+')
+        elif inst == 'Lower Motor 2':
+            self.move_motor(2, val, '-')
+        return inst
+
+    def move_motor(self, motor, steps, direction):
+        self.Stepper.move_motor(motor, steps, direction)
 
     def find_center(self, im):
         centers = []
@@ -59,7 +94,14 @@ class Balancer:
             masked = images.mask_img(~im[:, :, 0], self.masks[n])
             masked = images.threshold(masked, 200, cv2.THRESH_TOZERO)
             center = ndimage.measurements.center_of_mass(masked.transpose())
-            im = images.draw_circle(im, center[0], center[1], 5, color=images.PURPLE, thickness=-1)
+            try:
+                im = images.draw_circle(im, center[0], center[1], 5, color=images.PURPLE, thickness=-1)
+            except ValueError as err:
+                print(err)
+                print('center is ({},{})'.format(center[0], center[1]))
+                plt.figure()
+                plt.imshow(masked)
+                plt.show()
             centers.append(center)
         centers = np.array(centers)
         mean_center = np.mean(centers, axis=0)
@@ -75,8 +117,7 @@ class Balancer:
         im = cv2.putText(im, 'Tray Center', (10, 30), font, 1, images.RED, 2, cv2.LINE_AA)
         im = cv2.putText(im, 'Particle Center', (10, 60), font, 1, images.PINK, 2, cv2.LINE_AA)
         im = cv2.putText(im, 'Hexagon', (10, 90), font, 1, images.GREEN, 2, cv2.LINE_AA)
-        distance = sp.distance.pdist([center, self.center])
-        cv2.putText(im, 'Pixel distance : {:.3f}'.format(distance[0]), (10, 120),font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(im, 'Pixel distance : {:.3f}'.format(self.distance[0]), (10, 120),font, 1, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.putText(im, instr, (10, 150), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
         for i in range(6):
             im = cv2.putText(im, str(i), (int(self.hex[i, 0]), int(self.hex[i, 1])), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
@@ -106,5 +147,6 @@ class Balancer:
 
 if __name__ == "__main__":
     bal = Balancer(no_of_sides=6)
-    # bal.balance()
+    # bal.move_motor(1, 100, '+')
     bal.balance()
+    # bal.balance()
