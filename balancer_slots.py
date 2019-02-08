@@ -27,7 +27,7 @@ class Balancer:
         self.ard = arduino.Arduino('/dev/'+port)
         self.Stepper = stepper.Stepper(self.ard)
         self.webcam = camera.Camera(cam_type='logitechHD1080p', cam_num=cam_num)
-        self.hex, slots, self.center, self.contours, im = find_slots.find_regions(self.webcam.single_pic_array(), 10, 180)
+        self.hex, slots, self.center, self.contours, im = find_slots.find_regions(self.webcam.single_pic_array())
         images.display(im)
         self.mask, self.masks = self.create_masks(slots)
         self.step_size = step_size
@@ -91,9 +91,15 @@ class Balancer:
     def find_center(self, im):
         centers = []
         for n in range(6):
-            masked = images.mask_img(~im[:, :, 0], self.masks[n])
-            masked = images.threshold(masked, 200, cv2.THRESH_TOZERO)
+            masked_col = images.mask_img(~im, self.masks[n])
+            masked = images.bgr_2_grayscale(masked_col)
+            masked = images.threshold(masked, 200)
+            masked = images.erode(masked, (9, 9))
+            # images.display(masked)
             center = ndimage.measurements.center_of_mass(masked.transpose())
+            if np.isnan(center[0]):
+                # images.display(self.masks[n])
+                center = ndimage.measurements.center_of_mass(self.masks[n].transpose())
             try:
                 im = images.draw_circle(im, center[0], center[1], 5, color=images.PURPLE, thickness=-1)
             except ValueError as err:
