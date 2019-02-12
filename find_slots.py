@@ -10,7 +10,7 @@ def find_regions(image):
     blue = find_blue(image)
 
     # Find contours and sort by area
-    contours, _ = cv2.findContours(blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours = images.find_contours(blue)
     contours = sort_contours(contours)
 
     # Second biggest contour is the hexagonal boundary
@@ -20,9 +20,9 @@ def find_regions(image):
     slot_hulls = find_slot_info(contours)
 
     # Annotate image
-    image = cv2.drawContours(image, slot_hulls, -1, (0, 255, 0), 2)
+    image = images.draw_contours(image, slot_hulls)
     image = images.draw_polygon(image, hex_corners, thickness=2)
-    image = cv2.circle(image, (int(xc), int(yc)), 6, (255, 0, 0), -1)
+    image = images.draw_circle(image, int(xc), int(yc), 6, color=images.BLUE)
 
     return hex_corners, (xc, yc), slot_hulls, image
 
@@ -44,20 +44,21 @@ def find_hex_info(cnt):
     return hex_corners, (xc, yc)
 
 
-def refine_slot_contour(cnt, im):
-    cnt = cv2.convexHull(cnt)
-    mask = np.zeros(np.shape(im)[:2], dtype=np.uint8)
-    cv2.fillPoly(mask, [cnt], 1)
-    masked = images.mask_img(~im, mask)
-    masked = images.bgr_2_grayscale(masked)
-    masked = images.adaptive_threshold(masked, 31, 0)
-    images.display(masked)
-    contours, _ = cv2.findContours(masked, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    contours = sort_contours(contours)
-    hull = cv2.convexHull(contours[-2])
-    masked = cv2.drawContours(np.dstack((masked, masked, masked)), [hull], 0, (0, 255, 0))
-    images.display(masked)
-    return contours[-2]
+# def refine_slot_contour(cnt, im):
+#     cnt = cv2.convexHull(cnt)
+#     mask = np.zeros(np.shape(im)[:2], dtype=np.uint8)
+#     cv2.fillPoly(mask, [cnt], 1)
+#     masked = images.mask_img(~im, mask)
+#     masked = images.bgr_2_grayscale(masked)
+#     masked = images.adaptive_threshold(masked, 31, 0)
+#     images.display(masked)
+#     contours = images.find_contours(masked)
+#     contours = sort_contours(contours)
+#     hull = cv2.convexHull(contours[-2])
+#     masked = images.draw_contours(masked, [hull])
+#     masked = cv2.drawContours(np.dstack((masked, masked, masked)), [hull], 0, (0, 255, 0))
+#     images.display(masked)
+#     return contours[-2]
 
 
 def find_hex_corners(hex, xc, yc):
