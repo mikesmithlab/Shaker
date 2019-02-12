@@ -39,7 +39,7 @@ class Balancer:
         for slot, contour in zip(slots, self.contours):
             single_mask = np.zeros(np.shape(im)[:2])
             slot = slot.reshape(4, 1, 2)
-            cv2.fillPoly(mask, [slot],  1)
+            cv2.fillPoly(mask, [contour],  1)
             cv2.fillPoly(single_mask, [contour], 1)
             masks.append(single_mask)
         return mask.astype(np.uint8), np.array(masks).astype(np.uint8)
@@ -63,6 +63,7 @@ class Balancer:
             if self.distance < 2:
                 balanced = True
                 print('Centre of mass distance less than 2 pixels')
+                images.display(im)
             else:
                 # self.run_instruction(instruction)
                 time.sleep(delay)
@@ -92,23 +93,18 @@ class Balancer:
         centers = []
         for n in range(6):
             masked_col = images.mask_img(~im, self.masks[n])
-            masked = images.bgr_2_grayscale(masked_col)
-            masked = images.threshold(masked, 200)
-            masked = images.erode(masked, (9, 9))
-            # images.display(masked)
-            center = ndimage.measurements.center_of_mass(masked.transpose())
-            if np.isnan(center[0]):
-                # images.display(self.masks[n])
+            # images.display(masked_col)
+            circles = find_circles(masked_col)
+            im = images.draw_circles(im, circles, color=images.PINK,
+                                     thickness=1)
+            if len(np.shape(circles)) > 1:
+                center = np.mean(circles, axis=0)[:2]
+            else:
                 center = ndimage.measurements.center_of_mass(self.masks[n].transpose())
-            try:
-                im = images.draw_circle(im, center[0], center[1], 5, color=images.PURPLE, thickness=-1)
-            except ValueError as err:
-                print(err)
-                print('center is ({},{})'.format(center[0], center[1]))
-                plt.figure()
-                plt.imshow(masked)
-                plt.show()
+
+            im = images.draw_circle(im, center[0], center[1], 5, color=images.PURPLE, thickness=-1)
             centers.append(center)
+        # images.display(im)
         centers = np.array(centers)
         mean_center = np.mean(centers, axis=0)
         return mean_center, im
@@ -150,6 +146,31 @@ class Balancer:
         return inst
 
 
+def brightest_circles(circles, im, width=2):
+    brightness = []
+    for circle in circles:
+        small_im = im[int(circle[1])-width:int(circle[1])+width,
+                      int(circle[0])-width:int(circle[0])+width]
+        brightness.append(np.mean(small_im))
+    order = np.flip(np.argsort(brightness))
+    return circles[order[:10]]
+
+
+def find_circles(im):
+    YCB = cv2.cvtColor(im, cv2.COLOR_BGR2YCrCb)
+    Y = YCB[:, :, 0]
+    circles = images.find_circles(Y, 5, 200, 5, 3, 5)
+    circles = brightest_circles(circles, Y)
+    # im = images.draw_circles(im, circles)
+    return circles
+
+
+def remove_boundary(im):
+    col = np.dstack((im, im, im))
+    contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    cv2.drawContours(col, contours, -1, (0, 255, 0), 1)
+    images.display(col)
+    return im
 
 if __name__ == "__main__":
     bal = Balancer(no_of_sides=6)
