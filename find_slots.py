@@ -6,16 +6,12 @@ import scipy.spatial as sp
 import matplotlib.pyplot as plt
 
 
-def find_regions(image, tol=10):
-    # Find the pixels in image that have blue pixels with values of at least
-    # 10 above the mean and set them to white in a binary image
-    mean = np.median(image, axis=2)
-    set_high = np.nonzero(image[:, :, 0] > mean + tol)
-    new_image = np.zeros(np.shape(image)[:2], dtype=np.uint8)
-    new_image[set_high] = 255
+def find_regions(image):
+    blue = find_blue(image)
+    # images.display(blue)
 
     # Find contours and sort by area
-    contours, _ = cv2.findContours(new_image, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv2.findContours(blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = sort_contours(contours)
 
     # Second biggest contour is the hexagonal boundary
@@ -24,8 +20,6 @@ def find_regions(image, tol=10):
     hex = contours[-2]
     (xc, yc), r = cv2.minEnclosingCircle(hex)
     hex = np.squeeze(hex)
-
-
 
     corners = find_hex_corners(hex, xc, yc)
     for corner in corners:
@@ -40,18 +34,21 @@ def find_regions(image, tol=10):
     slot_corners = []
     slot_hulls = []
     for n in np.arange(3, 9):
-        contour = refine_slot_contour(contours[-n], image)
-        slot_hulls.append(cv2.convexHull(contour))
+        contour = contours[-n]
+        # contour = refine_slot_contour(contours[-n], image)
+        hull = cv2.convexHull(contour)
+        slot_hulls.append(hull)
         rect = cv2.minAreaRect(contour)
         box = cv2.boxPoints(rect)
         box = np.int0(box)
         slot_corners.append(box)
-        image = cv2.drawContours(image, [box], 0, (0, 255, 0), 2)
+        image = cv2.drawContours(image, [box], 0, (0, 255, 0), 1)
+        image = cv2.drawContours(image, [hull], 0, (0, 0, 255), 1)
 
     slot_corners = sort_slots(np.array(slot_corners))
 
     image = cv2.drawContours(image, [hex], 0, (0, 255, 0), 2)
-    image = cv2.circle(image, (int(xc), int(yc)), int(r), (255, 0, 0), 2)
+    image = cv2.circle(image, (int(xc), int(yc)), 6, (255, 0, 0), -1)
 
     return hex_corners, slot_corners, (xc, yc), slot_hulls, image
 
@@ -63,9 +60,12 @@ def refine_slot_contour(cnt, im):
     masked = images.mask_img(~im, mask)
     masked = images.bgr_2_grayscale(masked)
     masked = images.adaptive_threshold(masked, 31, 0)
+    images.display(masked)
     contours, _ = cv2.findContours(masked, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours = sort_contours(contours)
-    masked = cv2.drawContours(np.dstack((masked, masked, masked)), [contours[-2]], 0, (0, 255, 0))
+    hull = cv2.convexHull(contours[-2])
+    masked = cv2.drawContours(np.dstack((masked, masked, masked)), [hull], 0, (0, 255, 0))
+    images.display(masked)
     return contours[-2]
 
 
@@ -108,6 +108,23 @@ def sort_slots(slots):
     mean_pos = np.mean(slots, axis=1)
     angles = np.arctan2(mean_pos[:, 1], mean_pos[:, 0])
     return slots[np.argsort(angles)]
+
+
+def find_blue(image):
+    """
+    https://www.learnopencv.com/color-spaces-in-opencv-cpp-python/
+    """
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+    b = lab[:, :, 2]
+    blue = images.threshold(b, mode=cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+
+    thresh = 0
+    minLAB = (20-thresh, 115-thresh, 70-thresh)
+    maxLAB = (255+thresh, 150+thresh, 120+thresh)
+    maskLAB = cv2.inRange(lab, minLAB, maxLAB)
+    return ~blue
+
+
 
 
 if __name__ == "__main__":
