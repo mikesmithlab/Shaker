@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 
 def find_regions(image):
     blue = find_blue(image)
-    # images.display(blue)
 
     # Find contours and sort by area
     contours, _ = cv2.findContours(blue, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -16,41 +15,33 @@ def find_regions(image):
 
     # Second biggest contour is the hexagonal boundary
     # Find center of hexagon using circle
+    hex_corners, (xc, yc) = find_hex_info(contours[-2])
 
-    hex = contours[-2]
-    (xc, yc), r = cv2.minEnclosingCircle(hex)
-    hex = np.squeeze(hex)
+    slot_hulls = find_slot_info(contours)
 
-    corners = find_hex_corners(hex, xc, yc)
-    for corner in corners:
-        center = (int(hex[corner, 0]), int(hex[corner, 1]))
-        image = cv2.circle(image, center, int(4), (0, 255, 0), 2)
-
-    hex_corners = np.array(hex[corners])
-
-
-    # Slots should be the next 6 biggest contours
-    # Save the coordinates of the bounding boxes
-    slot_corners = []
-    slot_hulls = []
-    for n in np.arange(3, 9):
-        contour = contours[-n]
-        # contour = refine_slot_contour(contours[-n], image)
-        hull = cv2.convexHull(contour)
-        slot_hulls.append(hull)
-        rect = cv2.minAreaRect(contour)
-        box = cv2.boxPoints(rect)
-        box = np.int0(box)
-        slot_corners.append(box)
-        image = cv2.drawContours(image, [box], 0, (0, 255, 0), 1)
-        image = cv2.drawContours(image, [hull], 0, (0, 0, 255), 1)
-
-    slot_corners = sort_slots(np.array(slot_corners))
-
-    image = cv2.drawContours(image, [hex], 0, (0, 255, 0), 2)
+    # Annotate image
+    image = cv2.drawContours(image, slot_hulls, -1, (0, 255, 0), 2)
+    image = images.draw_polygon(image, hex_corners, thickness=2)
     image = cv2.circle(image, (int(xc), int(yc)), 6, (255, 0, 0), -1)
 
-    return hex_corners, slot_corners, (xc, yc), slot_hulls, image
+    return hex_corners, (xc, yc), slot_hulls, image
+
+
+def find_slot_info(contours):
+    hulls = []
+    for n in np.arange(3, 9):
+        cnt = contours[-n]
+        hull = cv2.convexHull(cnt)
+        hulls.append(hull)
+    return hulls
+
+
+def find_hex_info(cnt):
+    (xc, yc), r = cv2.minEnclosingCircle(cnt)
+    cnt = np.squeeze(cnt)
+    corners = find_hex_corners(cnt, xc, yc)
+    hex_corners = np.array(cnt[corners])
+    return hex_corners, (xc, yc)
 
 
 def refine_slot_contour(cnt, im):
@@ -117,11 +108,6 @@ def find_blue(image):
     lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
     b = lab[:, :, 2]
     blue = images.threshold(b, mode=cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-
-    thresh = 0
-    minLAB = (20-thresh, 115-thresh, 70-thresh)
-    maxLAB = (255+thresh, 150+thresh, 120+thresh)
-    maskLAB = cv2.inRange(lab, minLAB, maxLAB)
     return ~blue
 
 
@@ -133,7 +119,7 @@ if __name__ == "__main__":
     webcam = camera.Camera(cam_type='logitechHD1080p', cam_num=cam_num)
     image = webcam.single_pic_array()
     # image = images.load_img('frame.png')
-    hex, slots, center, hulls, im = find_regions(image)
+    hex, center, hulls, im = find_regions(image)
     print(hex.shape)
-    print(slots.shape)
+    # print(slots.shape)
     images.display(im)
