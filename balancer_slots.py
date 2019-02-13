@@ -27,46 +27,68 @@ class Balancer:
         self.ard = arduino.Arduino('/dev/'+port)
         self.Stepper = stepper.Stepper(self.ard)
         self.webcam = camera.Camera(cam_type='logitechHD1080p', cam_num=cam_num)
-        self.hex, slots, self.center, self.contours, im = find_slots.find_regions(self.webcam.single_pic_array())
-        images.display(im)
-        self.mask, self.masks = self.create_masks(slots)
+        self.hex, self.center, self.contours, im = find_slots.find_regions(self.webcam.single_pic_array())
+        self.mask, self.masks = self.create_masks()
         self.step_size = step_size
 
-    def create_masks(self, slots):
+    def create_masks(self):
         im = self.webcam.single_pic_array()
         mask = np.zeros(np.shape(im)[:2])
         masks = []
-        for slot, contour in zip(slots, self.contours):
+        for contour in self.contours:
             single_mask = np.zeros(np.shape(im)[:2])
-            slot = slot.reshape(4, 1, 2)
             cv2.fillPoly(mask, [contour],  1)
             cv2.fillPoly(single_mask, [contour], 1)
             masks.append(single_mask)
         return mask.astype(np.uint8), np.array(masks).astype(np.uint8)
 
-    def balance(self, repeats=10, delay=1):
+    def balance(self, repeats=100, delay=5):
         balanced = False
+        instruction = ''
+        self.distance = 0
+        self.distance_err = 0
+        cv2.namedWindow('Levelling', cv2.WINDOW_KEEPRATIO)
+        cv2.resizeWindow('Levelling', 1280, 720)
         while balanced is False:
             centers = []
             for f in range(repeats):
                 im = self.webcam.single_pic_array()
                 center, im = self.find_center(im)
                 centers.append(center)
-            center = np.mean(centers, axis=0)
-            self.distance = sp.distance.pdist([center, self.center])
-            instruction = self.find_instruction(center)
-            print(instruction)
-            im = self.annotate_frame(im, center, instruction)
-            cv2.imshow('', im)
-            if cv2.waitKey(1) & 0xFF == ord('q'):
-                balanced = True
-            if self.distance < 2:
-                balanced = True
-                print('Centre of mass distance less than 2 pixels')
-                images.display(im)
-            else:
-                # self.run_instruction(instruction)
-                time.sleep(delay)
+                im = self.annotate_frame(im, center, instruction, f+1, repeats)
+                cv2.imshow('Levelling', im)
+                if cv2.waitKey(100) & 0xFF == ord('q'):
+                    balanced = True
+                    print('Balancing Quit')
+                    break
+            if balanced is False:
+                center = np.mean(centers, axis=0)
+                distances = sp.distance.cdist(centers, np.reshape(self.center, (1, 2)))
+                self.distance = np.mean(distances)
+                self.distance_err = np.std(distances)
+                instruction = self.find_instruction(center)
+
+                if self.distance > 2:
+                    self.run_instruction(instruction)
+                    self.delay_view(delay, instruction)
+                elif (self.distance <= 2) and (self.distance_err > 0.3):
+                    self.delay_view(delay, 'Do Nothing')
+                else:
+                    print('Balanced')
+                    balanced = True
+
+    def delay_view(self, delay, instruction):
+        for t in range(2*delay):
+            s = time.time()
+            im = self.webcam.single_pic_array()
+            center, im = self.find_center(im)
+            im = self.annotate_frame(im, center, instruction, 'Delay', delay - t/2)
+            cv2.imshow('Levelling', im)
+            cv2.waitKey(1)
+            interval = time.time() - s
+            if interval < 0.5:
+                time.sleep(0.5 - interval)
+
 
     def run_instruction(self, inst):
         val = self.step_size
@@ -109,7 +131,7 @@ class Balancer:
         mean_center = np.mean(centers, axis=0)
         return mean_center, im
 
-    def annotate_frame(self, im, center, instr):
+    def annotate_frame(self, im, center, instr, step, steps):
         if len(im.shape) == 2:
             im = np.dstack((im, im, im))
         im = images.draw_circle(im, center[0], center[1], 3, images.PINK)
@@ -119,8 +141,9 @@ class Balancer:
         im = cv2.putText(im, 'Tray Center', (10, 30), font, 1, images.RED, 2, cv2.LINE_AA)
         im = cv2.putText(im, 'Particle Center', (10, 60), font, 1, images.PINK, 2, cv2.LINE_AA)
         im = cv2.putText(im, 'Hexagon', (10, 90), font, 1, images.GREEN, 2, cv2.LINE_AA)
-        cv2.putText(im, 'Pixel distance : {:.3f}'.format(self.distance[0]), (10, 120),font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(im, 'Pixel distance : {:.3f} +/- {:.3f}'.format(self.distance, self.distance_err), (10, 120),font, 1, (255, 255, 255), 2, cv2.LINE_AA)
         cv2.putText(im, instr, (10, 150), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(im, '{} of {}'.format(step, steps), (10, 180), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
         for i in range(6):
             im = cv2.putText(im, str(i), (int(self.hex[i, 0]), int(self.hex[i, 1])), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
