@@ -8,7 +8,7 @@ from scipy import ndimage
 from scipy import spatial as sp
 import cv2
 import time
-import matplotlib.pyplot as plt
+
 
 class Balancer:
     """
@@ -26,13 +26,15 @@ class Balancer:
 
         self.ard = arduino.Arduino('/dev/'+port)
         self.Stepper = stepper.Stepper(self.ard)
-        self.webcam = camera.Camera(cam_type='logitechHD1080p', cam_num=cam_num)
-        self.hex, self.center, self.contours, im = find_slots.find_regions(self.webcam.single_pic_array())
+        self.cam = camera.Camera(cam_type='logitechHD1080p', cam_num=cam_num)
+        self.hex, self.center, self.contours, im = \
+            find_slots.find_regions(self.cam.single_pic_array())
+        images.display(im)
         self.mask, self.masks = self.create_masks()
         self.step_size = step_size
 
     def create_masks(self):
-        im = self.webcam.single_pic_array()
+        im = self.cam.single_pic_array()
         mask = np.zeros(np.shape(im)[:2])
         masks = []
         for contour in self.contours:
@@ -52,7 +54,7 @@ class Balancer:
         while balanced is False:
             centers = []
             for f in range(repeats):
-                im = self.webcam.single_pic_array()
+                im = self.cam.single_pic_array()
                 center, im = self.find_center(im)
                 centers.append(center)
                 im = self.annotate_frame(im, center, instruction, f+1, repeats)
@@ -63,7 +65,8 @@ class Balancer:
                     break
             if balanced is False:
                 center = np.mean(centers, axis=0)
-                distances = sp.distance.cdist(centers, np.reshape(self.center, (1, 2)))
+                distances = sp.distance.cdist(
+                    centers, np.reshape(self.center, (1, 2)))
                 self.distance = np.mean(distances)
                 self.distance_err = np.std(distances)
                 instruction = self.find_instruction(center)
@@ -80,15 +83,15 @@ class Balancer:
     def delay_view(self, delay, instruction):
         for t in range(2*delay):
             s = time.time()
-            im = self.webcam.single_pic_array()
+            im = self.cam.single_pic_array()
             center, im = self.find_center(im)
-            im = self.annotate_frame(im, center, instruction, 'Delay', delay - t/2)
+            im = self.annotate_frame(
+                im, center, instruction, 'Delay', delay - t/2)
             cv2.imshow('Levelling', im)
             cv2.waitKey(1)
             interval = time.time() - s
             if interval < 0.5:
                 time.sleep(0.5 - interval)
-
 
     def run_instruction(self, inst):
         val = self.step_size
@@ -115,18 +118,17 @@ class Balancer:
         centers = []
         for n in range(6):
             masked_col = images.mask_img(~im, self.masks[n])
-            # images.display(masked_col)
             circles = find_circles(masked_col)
             im = images.draw_circles(im, circles, color=images.PINK,
                                      thickness=1)
             if len(np.shape(circles)) > 1:
                 center = np.mean(circles, axis=0)[:2]
             else:
-                center = ndimage.measurements.center_of_mass(self.masks[n].transpose())
-
-            im = images.draw_circle(im, center[0], center[1], 5, color=images.PURPLE, thickness=-1)
+                center = ndimage.measurements.center_of_mass(
+                    self.masks[n].transpose())
+            im = images.draw_circle(im, center[0], center[1], 5,
+                                    color=images.PURPLE, thickness=-1)
             centers.append(center)
-        # images.display(im)
         centers = np.array(centers)
         mean_center = np.mean(centers, axis=0)
         return mean_center, im
@@ -135,17 +137,28 @@ class Balancer:
         if len(im.shape) == 2:
             im = np.dstack((im, im, im))
         im = images.draw_circle(im, center[0], center[1], 3, images.PINK)
-        im = images.draw_circle(im, self.center[0], self.center[1], 3, images.RED)
+        im = images.draw_circle(im, self.center[0], self.center[1], 3,
+                                images.RED)
         im = images.draw_polygon(im, self.hex, color=images.GREEN, thickness=3)
         font = cv2.FONT_HERSHEY_SIMPLEX
-        im = cv2.putText(im, 'Tray Center', (10, 30), font, 1, images.RED, 2, cv2.LINE_AA)
-        im = cv2.putText(im, 'Particle Center', (10, 60), font, 1, images.PINK, 2, cv2.LINE_AA)
-        im = cv2.putText(im, 'Hexagon', (10, 90), font, 1, images.GREEN, 2, cv2.LINE_AA)
-        cv2.putText(im, 'Pixel distance : {:.3f} +/- {:.3f}'.format(self.distance, self.distance_err), (10, 120),font, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(im, instr, (10, 150), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(im, '{} of {}'.format(step, steps), (10, 180), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+        im = cv2.putText(im, 'Tray Center', (10, 30), font, 1, images.RED, 2,
+                         cv2.LINE_AA)
+        im = cv2.putText(im, 'Particle Center', (10, 60), font, 1, images.PINK,
+                         2, cv2.LINE_AA)
+        im = cv2.putText(im, 'Hexagon', (10, 90), font, 1, images.GREEN, 2,
+                         cv2.LINE_AA)
+        cv2.putText(
+                im, 'Pixel distance : {:.3f} +/- {:.3f}'.format(
+                self.distance, self.distance_err), (10, 120), font, 1,
+                (255, 255, 255), 2, cv2.LINE_AA)
+        cv2.putText(im, instr, (10, 150), font, 1, (255, 255, 255), 2,
+                    cv2.LINE_AA)
+        cv2.putText(im, '{} of {}'.format(step, steps), (10, 180), font, 1,
+                    (255, 255, 255), 2, cv2.LINE_AA)
         for i in range(6):
-            im = cv2.putText(im, str(i), (int(self.hex[i, 0]), int(self.hex[i, 1])), font, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            im = cv2.putText(
+                    im, str(i), (int(self.hex[i, 0]), int(self.hex[i, 1])),
+                    font, 1, (255, 255, 255), 2, cv2.LINE_AA)
 
         return im
 
@@ -180,17 +193,19 @@ def brightest_circles(circles, im, width=2):
 
 
 def find_circles(im):
-    YCB = cv2.cvtColor(im, cv2.COLOR_BGR2YCrCb)
-    Y = YCB[:, :, 0]
-    circles = images.find_circles(Y, 5, 200, 5, 3, 5)
-    circles = brightest_circles(circles, Y)
-    # im = images.draw_circles(im, circles)
+    ycrcb = cv2.cvtColor(im, cv2.COLOR_BGR2YCrCb)
+    y = ~ycrcb[:, :, 0]
+    y = images.threshold(y, 200, cv2.THRESH_TRUNC+cv2.THRESH_OTSU)
+    circles = images.find_circles(y, 6, 220, 3, 4, 5)
+    circles = brightest_circles(circles, ~y)
+    # im = images.draw_circles(im, circles, color=images.RED)
     return circles
 
 
 def remove_boundary(im):
     col = np.dstack((im, im, im))
-    contours, hierarchy = cv2.findContours(im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv2.findContours(
+        im, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     cv2.drawContours(col, contours, -1, (0, 255, 0), 1)
     images.display(col)
     return im
