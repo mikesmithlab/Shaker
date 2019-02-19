@@ -9,7 +9,7 @@ Created on Tue Aug 14 10:49:19 2018
 import sys
 import serial
 import time
-import arduino
+from Shaker import arduino
 
 class DualStepper:
 
@@ -117,17 +117,18 @@ class Stepper():
 
 if __name__ == '__main__':
 
-    class_choice = input("Enter '1' to test DualStepper or '2' to test Stepper ")
-    if class_choice == '1':
-        s=DualStepper()
-        #Reset y barrier
-        s.send_command('RY')
-        #Move y barrier 2000 steps towards the middle
-        s.send_command('MY+',steps=1000)
-        s.quit_serial()
+    # class_choice = input("Enter '1' to test DualStepper or '2' to test Stepper ")
+    # if class_choice == '1':
+    #     s=DualStepper()
+    #     #Reset y barrier
+    #     s.send_command('RY')
+    #     #Move y barrier 2000 steps towards the middle
+    #     s.send_command('MY+',steps=1000)
+    #     s.quit_serial()
 
-    elif class_choice == '2':
-        ard = arduino.Arduino()
-        s = Stepper(ard)
-        s.move_motor(1, 100, '+')
-        ard.quit_serial()
+    # elif class_choice == '2':
+    port = arduino.find_port()
+    ard = arduino.Arduino('/dev/'+port)
+    s = Stepper(ard)
+    s.move_motor(1, 100, '+')
+    # ard.quit_serial()
