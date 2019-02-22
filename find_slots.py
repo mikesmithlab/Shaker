@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 
 
 def find_regions(image):
-    blue = find_blue(image)
+    blue = images.find_color(image, 'Blue')
 
     # Find contours and sort by area
     contours = images.find_contours(blue)
@@ -100,18 +100,6 @@ def sort_slots(slots):
     mean_pos = np.mean(slots, axis=1)
     angles = np.arctan2(mean_pos[:, 1], mean_pos[:, 0])
     return slots[np.argsort(angles)]
-
-
-def find_blue(image):
-    """
-    https://www.learnopencv.com/color-spaces-in-opencv-cpp-python/
-    """
-    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
-    b = lab[:, :, 2]
-    blue = images.threshold(b, mode=cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-    return ~blue
-
-
 
 
 if __name__ == "__main__":
