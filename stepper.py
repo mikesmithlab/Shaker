@@ -130,5 +130,5 @@ if __name__ == '__main__':
     port = arduino.find_port()
     ard = arduino.Arduino('/dev/'+port)
     s = Stepper(ard)
-    s.move_motor(1, 100, '+')
+    s.move_motor(2, 100, '+')
     # ard.quit_serial()

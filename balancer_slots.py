@@ -213,5 +213,5 @@ def remove_boundary(im):
 if __name__ == "__main__":
     bal = Balancer(no_of_sides=6)
     # bal.move_motor(1, 100, '+')
-    bal.balance()
+    # bal.balance()
     # bal.balance()

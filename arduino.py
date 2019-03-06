@@ -45,8 +45,7 @@ class Arduino:
         if os == 'linux':
             self.port.port = fd.load_filename(
                     'Choose a comport',
-                    directory='/dev/',
-                    file_filter='ttyA*')
+                    directory='/dev/')
 
     def wait_for_ready(self):
         """Ensure the arduino has initialised by waiting for the
@@ -60,7 +59,6 @@ class Arduino:
         """ Close the serial port """
         self.port.close()
         print('port closed')
-
 
     def send_serial_line(self, text):
         """
@@ -98,6 +96,7 @@ class Arduino:
         text = self.port.readline()
         return text.decode()
 
+
 def find_port():
     items = os.listdir('/dev/')
     newlist = []
@@ -107,9 +106,11 @@ def find_port():
     return newlist[0]
 
 
-if __name__=="__main__":
-    ard = Arduino()
-    ard.send_serial_line("r")
+if __name__ == "__main__":
+    a = find_port()
+    print(a)
+    ard = Arduino('/dev/'+a)
+    # ard.send_serial_line("r")
     text = ard.read_serial_line()
     print(text)
     ard.quit_serial()

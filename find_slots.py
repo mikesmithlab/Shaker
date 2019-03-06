@@ -8,15 +8,16 @@ import matplotlib.pyplot as plt
 
 def find_regions(image):
     blue = images.find_color(image, 'Blue')
-
+    images.display(blue)
     # Find contours and sort by area
     contours = images.find_contours(blue)
-    contours = sort_contours(contours)
-
+    contours = images.sort_contours(contours)
     # Second biggest contour is the hexagonal boundary
     # Find center of hexagon using circle
-    hex_corners, (xc, yc) = find_hex_info(contours[-2])
-
+    # hex_corners, (xc, yc) = find_hex_info(contours[-2])
+    hex_corners, (xc, yc) = images.find_contour_corners(contours[-2], 6,
+                                                        aligned=True)
+    hex_corners = contours[-2][hex_corners]
     slot_hulls = find_slot_info(contours)
 
     # Annotate image
@@ -36,12 +37,12 @@ def find_slot_info(contours):
     return hulls
 
 
-def find_hex_info(cnt):
-    (xc, yc), r = cv2.minEnclosingCircle(cnt)
-    cnt = np.squeeze(cnt)
-    corners = find_hex_corners(cnt, xc, yc)
-    hex_corners = np.array(cnt[corners])
-    return hex_corners, (xc, yc)
+# def find_hex_info(cnt):
+#     (xc, yc), r = cv2.minEnclosingCircle(cnt)
+#     cnt = np.squeeze(cnt)
+#     corners = find_hex_corners(cnt, xc, yc)
+#     hex_corners = np.array(cnt[corners])
+#     return hex_corners, (xc, yc)
 
 
 # def refine_slot_contour(cnt, im):
@@ -85,15 +86,15 @@ def find_hex_corners(hex, xc, yc):
     return corners
 
 
-def sort_contours(contours):
-    area = []
-    for cnt in contours:
-        area.append(cv2.contourArea(cnt))
-    sorted = np.argsort(area)
-    contours_new = []
-    for arg in sorted:
-        contours_new.append(contours[arg])
-    return contours_new
+# def sort_contours(contours):
+#     area = []
+#     for cnt in contours:
+#         area.append(cv2.contourArea(cnt))
+#     sorted = np.argsort(area)
+#     contours_new = []
+#     for arg in sorted:
+#         contours_new.append(contours[arg])
+#     return contours_new
 
 
 def sort_slots(slots):
