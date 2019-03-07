@@ -167,15 +167,15 @@ class Balancer:
         sort = np.argsort(distances)
         closest = sort[0]
 
-        if closest == 0:
+        if closest == 3:
             inst = 'Lower Motors 1 and 2'
-        elif closest == 1:
-            inst = 'Lower Motor 1'
-        elif closest == 2:
-            inst = 'Raise Motor 2'
-        elif closest == 3:
-            inst = 'Raise Motors 1 and 2'
         elif closest == 4:
+            inst = 'Lower Motor 1'
+        elif closest == 5:
+            inst = 'Raise Motor 2'
+        elif closest == 0:
+            inst = 'Raise Motors 1 and 2'
+        elif closest == 1:
             inst = 'Raise Motor 1'
         else:
             inst = 'Lower Motor 2'
@@ -214,4 +214,4 @@ if __name__ == "__main__":
     bal = Balancer(no_of_sides=6)
     # bal.move_motor(1, 100, '+')
     # bal.balance()
-    # bal.balance()
+    bal.balance()
