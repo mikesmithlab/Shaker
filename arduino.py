@@ -23,14 +23,14 @@ Login out and back in again for it to take effect.
 
 class Arduino:
 
-    def __init__(self, port=None):
+    def __init__(self, port=None, rate=9600, wait=True):
         """Open the selected serial port"""
         self.port = serial.Serial()
         if port:
             self.port.port = port
         else:
             self.choose_port()
-        self.port.baudrate = 9600
+        self.port.baudrate = rate
         self.port.timeout = 0
         if self.port.isOpen() == False:
             self.port.open()
@@ -39,7 +39,10 @@ class Arduino:
             print('port opened')
         else:
             print("Select a COMPORT")
-        self.wait_for_ready()
+        if wait:
+            self.wait_for_ready()
+        else:
+            time.sleep(2)
 
     def choose_port(self, os='linux'):
         if os == 'linux':
@@ -107,10 +110,13 @@ def find_port():
 
 
 if __name__ == "__main__":
-    a = find_port()
-    print(a)
-    ard = Arduino('/dev/'+a)
-    # ard.send_serial_line("r")
+    # a = find_port()
+    # print(a)
+    ard = Arduino('/dev/serial/by-id/usb-Arduino_LLC_Arduino_Micro-if00')
+    ard.send_serial_line("100")
+    text = ard.read_serial_line()
+    print(text)
+    ard.send_serial_line('200')
     text = ard.read_serial_line()
     print(text)
     ard.quit_serial()
