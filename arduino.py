@@ -35,14 +35,14 @@ class Arduino:
         if self.port.isOpen() == False:
             self.port.open()
             self.port_status = True
-            time.sleep(2)
+            time.sleep(0.5)
             print('port opened')
         else:
             print("Select a COMPORT")
         if wait:
             self.wait_for_ready()
         else:
-            time.sleep(2)
+            time.sleep(0.5)
 
     def choose_port(self, os='linux'):
         if os == 'linux':
@@ -98,6 +98,17 @@ class Arduino:
             time.sleep(0.1)
         text = self.port.readline()
         return text.decode()
+
+    def readlines(self, n):
+        out = [self.port.readline().decode() for i in range(n)]
+        return out
+
+    def ignorelines(self, n):
+        [self.port.readline() for i in range(n)]
+
+    def flush(self):
+        while self.port.inWaiting() > 1:
+            self.port.reset_input_buffer()
 
 
 def find_port():
