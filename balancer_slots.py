@@ -17,18 +17,18 @@ class Balancer:
 
     def __init__(self, port=None, no_of_sides=None, step_size=50):
         cam_num = camera.find_camera_number()
-        if port is None:
-            port = arduino.find_port()
+        # if port is None:
+        #     port = arduino.find_port()
         if no_of_sides is None:
             self.no_of_sides = int(input('Enter the number of sides'))
         else:
             self.no_of_sides = no_of_sides
 
-        self.ard = arduino.Arduino('/dev/'+port)
-        self.Stepper = stepper.Stepper(self.ard)
+        # self.ard = arduino.Arduino('/dev/'+port)
+        # self.Stepper = stepper.Stepper(self.ard)
         self.cam = camera.Camera(cam_type='logitechHD1080p', cam_num=cam_num)
         self.hex, self.center, self.contours, im = \
-            find_slots.find_regions(self.cam.single_pic_array())
+            find_regions(self.cam.single_pic_array())
         images.display(im)
         self.mask, self.masks = self.create_masks()
         self.step_size = step_size
@@ -192,13 +192,51 @@ def brightest_circles(circles, im, width=2):
     return circles[order[:10]]
 
 
+def find_regions(image):
+    blue = images.find_color(image, 'Blue')
+    # Find contours and sort by area
+    contours = images.find_contours(blue)
+    contours = images.sort_contours(contours)
+    # Second biggest contour is the hexagonal boundary
+    # Find center of hexagon using circle
+    hex_corners, (xc, yc) = images.find_contour_corners(contours[-2], 6,
+                                                        aligned=True)
+    hex_corners = contours[-2][hex_corners]
+    slot_hulls = [cv2.convexHull(contours[-n]) for n in np.arange(3, 9)]
+
+    # Annotate image
+    image = images.draw_contours(image, slot_hulls)
+    image = images.draw_polygon(image, hex_corners, thickness=2)
+    image = images.draw_circle(image, int(xc), int(yc), 6, color=images.BLUE)
+    hex_corners = np.squeeze(np.array(hex_corners))
+
+    return hex_corners, (xc, yc), slot_hulls, image
+
+
+# def find_circles(im):
+#     images.display(im)
+#
+#     gray = images.bgr_2_grayscale(im)
+#     y = images.threshold(gray, 200, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
+#     images.display(y)
+#     circles = images.find_circles(y, 5, 220, 3, 4, 5)
+#     circles = brightest_circles(circles, ~y)
+#     # im = images.draw_circles(im, circles, color=images.RED)
+#     return circles
+
+
 def find_circles(im):
-    ycrcb = cv2.cvtColor(im, cv2.COLOR_BGR2YCrCb)
-    y = ~ycrcb[:, :, 0]
-    y = images.threshold(y, 200, cv2.THRESH_TRUNC+cv2.THRESH_OTSU)
-    circles = images.find_circles(y, 6, 220, 3, 4, 5)
-    circles = brightest_circles(circles, ~y)
-    # im = images.draw_circles(im, circles, color=images.RED)
+    blue = im[:, :, 0]
+    # images.display(blue, 'blue')
+    thresh = images.threshold(blue, thresh=150, mode=cv2.THRESH_BINARY)
+    thresh = images.opening(thresh, kernel=(5, 5), kernel_type=cv2.MORPH_ELLIPSE)
+    # images.display(thresh, 'thresh')
+    circles = images.find_circles(thresh, 4, 200, 4, 3, 5)
+    annotated = images.draw_circles(im, circles)
+    # images.display(annotated)
+    circles = brightest_circles(circles, blue)
+    im = images.draw_circles(im, circles, color=images.RED)
+    # images.display(im)
     return circles
 
 
