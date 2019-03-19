@@ -110,6 +110,13 @@ class Arduino:
         while self.port.inWaiting() > 1:
             self.port.reset_input_buffer()
 
+    def read_all(self):
+        string = ''
+        while self.port.inWaiting() > 1:
+            l = self.port.readline()
+            string += l.decode("utf-8")
+        return string
+
 
 def find_port():
     items = os.listdir('/dev/')
