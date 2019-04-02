@@ -36,12 +36,12 @@ class PowerSupply:
         message = lines[1]
         return message
 
-    def ramp(self, start, end, rate):
+    def ramp(self, start, end, rate, step_size=1):
         """Basic Ramp without accelerometer reading"""
         if end > start:
-            values = np.arange(start, end + 1, 1)
+            values = np.arange(start, end + 1, 1*step_size)
         else:
-            values = np.arange(start, end - 1, -1)
+            values = np.arange(start, end - 1, -1*step_size)
 
         self.init_duty(start, 0.1)
         delay = 1 / rate
@@ -49,12 +49,12 @@ class PowerSupply:
             self.change_duty(v, delay)
         self.init_duty(0)
 
-    def ramp2(self, start, end, rate, readings=1):
+    def ramp2(self, start, end, rate, readings=1, step_size=1):
         """Ramp with accelerometer readings"""
         if end > start:
-            values = np.arange(start, end + 1, 1)
+            values = np.arange(start, end + 1, 1*step_size)
         else:
-            values = np.arange(start, end - 1, -1)
+            values = np.arange(start, end - 1, -1*step_size)
         self.init_duty(start, 0.1)
         delay = 1 / rate
         string = ''
