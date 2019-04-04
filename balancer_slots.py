@@ -1,6 +1,5 @@
 import Shaker.stepper as stepper
 import Shaker.arduino as arduino
-import Shaker.find_slots as find_slots
 import Generic.camera as camera
 import Generic.images as images
 import numpy as np
@@ -10,22 +9,23 @@ import cv2
 import time
 
 
+STEPPER_CONTROL = "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_5573532393535190E022-if00"
+
 class Balancer:
     """
     Class to balance the shaker using stepper motors and the slots
     """
 
-    def __init__(self, port=None, no_of_sides=None, step_size=50):
+    def __init__(self, no_of_sides=None, step_size=200):
         cam_num = camera.find_camera_number()
-        # if port is None:
-        #     port = arduino.find_port()
+        port = STEPPER_CONTROL
         if no_of_sides is None:
             self.no_of_sides = int(input('Enter the number of sides'))
         else:
             self.no_of_sides = no_of_sides
 
-        # self.ard = arduino.Arduino('/dev/'+port)
-        # self.Stepper = stepper.Stepper(self.ard)
+        self.ard = arduino.Arduino(port)
+        self.Stepper = stepper.Stepper(self.ard)
         self.cam = camera.Camera(cam_type='logitechHD1080p', cam_num=cam_num)
         self.hex, self.center, self.contours, im = \
             find_regions(self.cam.single_pic_array())
@@ -213,28 +213,12 @@ def find_regions(image):
     return hex_corners, (xc, yc), slot_hulls, image
 
 
-# def find_circles(im):
-#     images.display(im)
-#
-#     gray = images.bgr_2_grayscale(im)
-#     y = images.threshold(gray, 200, cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-#     images.display(y)
-#     circles = images.find_circles(y, 5, 220, 3, 4, 5)
-#     circles = brightest_circles(circles, ~y)
-#     # im = images.draw_circles(im, circles, color=images.RED)
-#     return circles
-
-
 def find_circles(im):
-    blue = im[:, :, 0]
-    # images.display(blue, 'blue')
-    thresh = images.threshold(blue, thresh=150, mode=cv2.THRESH_BINARY)
-    thresh = images.opening(thresh, kernel=(5, 5), kernel_type=cv2.MORPH_ELLIPSE)
-    # images.display(thresh, 'thresh')
-    circles = images.find_circles(thresh, 4, 200, 4, 3, 5)
-    annotated = images.draw_circles(im, circles)
-    # images.display(annotated)
-    circles = brightest_circles(circles, blue)
+    gray = images.bgr_2_grayscale(im)
+    # images.threshold_slider(gray)
+    # images.Circle_GUI(gray)
+    circles = images.find_circles(gray, 6, 200, 3, 4, 5)
+    circles = brightest_circles(circles, gray)
     im = images.draw_circles(im, circles, color=images.RED)
     # images.display(im)
     return circles
@@ -250,6 +234,4 @@ def remove_boundary(im):
 
 if __name__ == "__main__":
     bal = Balancer(no_of_sides=6)
-    # bal.move_motor(1, 100, '+')
-    # bal.balance()
-    bal.balance()
+    bal.balance(delay=60)
