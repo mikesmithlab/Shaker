@@ -1,5 +1,4 @@
-import Shaker.stepper as stepper
-import Shaker.arduino as arduino
+from Generic.equipment import stepper, arduino
 import Generic.camera as camera
 import Generic.images as images
 import numpy as np
