@@ -52,7 +52,9 @@ class PowerSupply:
         for v in values:
             t = time.time()
             self.change_duty(v)
-            time.sleep(delay - (time.time() - t))
+            interval = delay - (time.time() - t)
+            if interval > 0:
+                time.sleep(delay - (time.time() - t))
         self.init_duty(0)
 
     def init_duty(self, val):
