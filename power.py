@@ -57,6 +57,27 @@ class PowerSupply:
                 time.sleep(delay - (time.time() - t))
         self.init_duty(0)
 
+    def ramp_up_and_down(self, start, end, rate, step_size):
+        if end > start:
+            values = np.arange(start, end + 1, 1*step_size)
+            next_values = np.arange(end, start-1, -1*step_size)
+            values = np.append(values, next_values)
+        else:
+            values = np.arange(start, end - 1, -1*step_size)
+            next_values = np.arange(start, end + 1, 1*step_size)
+            values = np.append(values, next_values)
+
+        self.init_duty(start)
+        delay = 1/rate
+        time.sleep(delay)
+        for v in values:
+            t = time.time()
+            self.change_duty(v)
+            interval = delay - time.time() + t
+            if interval > 0:
+                time.sleep(interval)
+        self.init_duty(0)
+
     def init_duty(self, val):
         string = 'i{:03}'.format(val)
         self.ps_ard.send_serial_line(string)
