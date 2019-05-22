@@ -1,8 +1,6 @@
 from Generic.equipment import arduino
 import numpy as np
 import time
-import matplotlib.pyplot as plt
-from Generic import filedialogs
 
 
 SPEAKER = "/dev/serial/by-id/usb-Arduino_LLC_Arduino_Micro-if00"

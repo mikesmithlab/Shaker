@@ -10,6 +10,7 @@ import time
 
 STEPPER_CONTROL = "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_5573532393535190E022-if00"
 
+
 class Balancer:
     """
     Class to balance the shaker using stepper motors and the slots
@@ -43,7 +44,7 @@ class Balancer:
             masks.append(single_mask)
         return mask.astype(np.uint8), np.array(masks).astype(np.uint8)
 
-    def balance(self, repeats=100, delay=5):
+    def balance(self, repeats=100, delay=5, threshold=2):
         balanced = False
         instruction = ''
         self.distance = 0
@@ -56,6 +57,7 @@ class Balancer:
                 im = self.cam.single_pic_array()
                 center, im = self.find_center(im)
                 centers.append(center)
+                self.current_center = np.mean(centers, axis=0)
                 im = self.annotate_frame(im, center, instruction, f+1, repeats)
                 cv2.imshow('Levelling', im)
                 if cv2.waitKey(100) & 0xFF == ord('q'):
@@ -70,11 +72,9 @@ class Balancer:
                 self.distance_err = np.std(distances)
                 instruction = self.find_instruction(center)
 
-                if self.distance > 2:
+                if self.distance > threshold:
                     self.run_instruction(instruction)
                     self.delay_view(delay, instruction)
-                elif (self.distance <= 2) and (self.distance_err > 0.3):
-                    self.delay_view(delay, 'Do Nothing')
                 else:
                     print('Balanced')
                     balanced = True
@@ -87,7 +87,8 @@ class Balancer:
             im = self.annotate_frame(
                 im, center, instruction, 'Delay', delay - t/2)
             cv2.imshow('Levelling', im)
-            cv2.waitKey(1)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
             interval = time.time() - s
             if interval < 0.5:
                 time.sleep(0.5 - interval)
@@ -135,6 +136,9 @@ class Balancer:
     def annotate_frame(self, im, center, instr, step, steps):
         if len(im.shape) == 2:
             im = np.dstack((im, im, im))
+        im = images.draw_circle(im, self.current_center[0],
+                                self.current_center[1], 5,
+                                color=images.ORANGE, thickness=-1)
         im = images.draw_circle(im, center[0], center[1], 3, images.PINK)
         im = images.draw_circle(im, self.center[0], self.center[1], 3,
                                 images.RED)
@@ -144,15 +148,17 @@ class Balancer:
                          cv2.LINE_AA)
         im = cv2.putText(im, 'Particle Center', (10, 60), font, 1, images.PINK,
                          2, cv2.LINE_AA)
-        im = cv2.putText(im, 'Hexagon', (10, 90), font, 1, images.GREEN, 2,
+        im = cv2.putText(im, 'Average Center', (10, 90), font, 1, images.ORANGE,
+                         2, cv2.LINE_AA)
+        im = cv2.putText(im, 'Hexagon', (10, 120), font, 1, images.GREEN, 2,
                          cv2.LINE_AA)
         cv2.putText(
                 im, 'Pixel distance : {:.3f} +/- {:.3f}'.format(
-                self.distance, self.distance_err), (10, 120), font, 1,
+                self.distance, self.distance_err), (10, 150), font, 1,
                 (255, 255, 255), 2, cv2.LINE_AA)
-        cv2.putText(im, instr, (10, 150), font, 1, (255, 255, 255), 2,
+        cv2.putText(im, instr, (10, 180), font, 1, (255, 255, 255), 2,
                     cv2.LINE_AA)
-        cv2.putText(im, '{} of {}'.format(step, steps), (10, 180), font, 1,
+        cv2.putText(im, '{} of {}'.format(step, steps), (10, 210), font, 1,
                     (255, 255, 255), 2, cv2.LINE_AA)
         for i in range(6):
             im = cv2.putText(
@@ -232,5 +238,5 @@ def remove_boundary(im):
     return im
 
 if __name__ == "__main__":
-    bal = Balancer(no_of_sides=6)
-    bal.balance(delay=60)
+    bal = Balancer(no_of_sides=6, step_size=25)
+    bal.balance(repeats=200, delay=60, threshold=5)
