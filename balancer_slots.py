@@ -1,12 +1,13 @@
-from Generic.equipment import stepper, arduino
-import Generic.camera as camera
-import Generic.images as images
+import time
+
+import cv2
 import numpy as np
 from scipy import ndimage
 from scipy import spatial as sp
-import cv2
-import time
 
+import Generic.camera as camera
+import Generic.images as images
+from Generic.equipment import stepper, arduino
 
 STEPPER_CONTROL = "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_5573532393535190E022-if00"
 
@@ -198,9 +199,12 @@ def brightest_circles(circles, im, width=2):
 
 
 def find_regions(image):
-    blue = images.find_color(image, 'Blue')
+    # blue = images.find_color(image, 'Blue')
+    blue = find_blue(image)
     # Find contours and sort by area
     contours = images.find_contours(blue)
+    temp = images.draw_contours(image, contours)
+    images.display(temp)
     contours = images.sort_contours(contours)
     # Second biggest contour is the hexagonal boundary
     # Find center of hexagon using circle
@@ -216,6 +220,14 @@ def find_regions(image):
     hex_corners = np.squeeze(np.array(hex_corners))
 
     return hex_corners, (xc, yc), slot_hulls, image
+
+
+def find_blue(im):
+    hsv_im = cv2.cvtColor(im, cv2.COLOR_RGB2HSV)
+    mask = cv2.inRange(hsv_im, (0, 0, 0), (50, 255, 255))
+    blue = cv2.bitwise_and(im, im, mask=mask)
+    blue = images.bgr_2_grayscale(blue)
+    return blue
 
 
 def find_circles(im):
