@@ -1,7 +1,7 @@
 import numpy as np
 
-duties = np.loadtxt("Shaker/duties_map.txt")
-accels = np.loadtxt("Shaker/acceleration_map_volts.txt")
+duties = np.loadtxt("/home/ppxjd3/Code/Shaker/duties_map.txt")
+accels = np.loadtxt("/home/ppxjd3/Code/Shaker/acceleration_map_volts.txt")
 
 
 def get_ramp(start, end, steps):

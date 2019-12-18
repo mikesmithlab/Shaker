@@ -1,7 +1,8 @@
-from Generic.equipment import arduino
-import numpy as np
 import time
 
+import numpy as np
+
+from Generic.equipment import arduino
 
 SPEAKER = "/dev/serial/by-id/usb-Arduino_LLC_Arduino_Micro-if00"
 POWERSUPPLY = "/dev/serial/by-id/usb-Arduino__www.arduino.cc__0043_757353034313511092C1-if00"
@@ -37,14 +38,14 @@ class PowerSupply:
         message = lines[1]
         return message
 
-    def ramp(self, start, end, rate, step_size=1):
+    def ramp(self, start, end, rate, step_size=1, record=True,
+             stop_at_end=True):
         """Basic Ramp without accelerometer reading"""
         if end > start:
             values = np.arange(start, end + 1, 1*step_size)
         else:
             values = np.arange(start, end - 1, -1*step_size)
-
-        self.init_duty(start)
+        self.init_duty(start) if record else self.change_duty(start)
         delay = 1 / rate
         time.sleep(delay)
         for v in values:
@@ -53,7 +54,10 @@ class PowerSupply:
             interval = delay - (time.time() - t)
             if interval > 0:
                 time.sleep(delay - (time.time() - t))
-        self.init_duty(0)
+        if stop_at_end:
+            self.init_duty(0) if record else self.change_duty(0)
+        else:
+            self.init_duty(end) if record else self.change_duty(end)
 
     def ramp_up_and_down(self, start, end, rate, step_size):
         if end > start:

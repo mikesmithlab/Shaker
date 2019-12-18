@@ -201,6 +201,7 @@ def brightest_circles(circles, im, width=2):
 def find_regions(image):
     # blue = images.find_color(image, 'Blue')
     blue = find_blue(image)
+    images.display(blue)
     # Find contours and sort by area
     contours = images.find_contours(blue)
     temp = images.draw_contours(image, contours)
@@ -224,7 +225,7 @@ def find_regions(image):
 
 def find_blue(im):
     hsv_im = cv2.cvtColor(im, cv2.COLOR_RGB2HSV)
-    mask = cv2.inRange(hsv_im, (0, 0, 0), (50, 255, 255))
+    mask = cv2.inRange(hsv_im, (2, 22, 172), (15, 118, 231))
     blue = cv2.bitwise_and(im, im, mask=mask)
     blue = images.bgr_2_grayscale(blue)
     return blue
