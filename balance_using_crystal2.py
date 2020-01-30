@@ -1,5 +1,6 @@
 import datetime
 import os
+import time
 
 import cv2
 import numpy as np
@@ -18,10 +19,13 @@ class Balancer:
         now = datetime.datetime.now()
         self.log_direc = "/media/data/Data/Logs/{}_{}_{}_{}_{}/".format(
             now.year, now.month, now.day, now.hour, now.minute)
-        os.mkdir(self.log_direc)
+        try:
+            os.mkdir(self.log_direc)
+        except FileExistsError as e:
+            print(e)
         self.i = 0
         self.shaker = power.PowerSupply()
-        self.shaker.change_duty(750)
+        self.shaker.change_duty(820)
         self.step_size = step_size
         cam_num = camera.find_camera_number()
         port = STEPPER_CONTROL
@@ -54,9 +58,20 @@ class Balancer:
             centers = []
             for f in range(repeats):
                 self.f = f
-                self.shaker.ramp(900, 730, 1, record=False, stop_at_end=False)
-                mean_im = self.mean_im()
-                center = self.find_center(mean_im)
+                self.shaker.change_duty(800)
+                time.sleep(5)
+                self.shaker.ramp(800, 700, 0.5, record=False,
+                                 stop_at_end=False)
+                # self.shaker.ramp(750, 650, 0.5, record=False, stop_at_end=False)
+                time.sleep(10)
+                while True:
+                    try:
+                        mean_im = self.mean_im()
+                        center = self.find_center(mean_im)
+                        break
+                    except ZeroDivisionError as e:
+                        print(e, "No crystal retaking mean")
+
                 centers.append(center)
                 mean_center = np.mean(centers, axis=0).astype(np.int32)
                 annotated_im = self.annotate_image(mean_im, center,
@@ -76,6 +91,8 @@ class Balancer:
             else:
                 balanced = True
                 print('BALANCED')
+                print(datetime.datetime.now())
+                self.shaker.change_duty(0)
 
     def run_instruction(self, instruction):
         val = self.step_size
@@ -130,8 +147,9 @@ class Balancer:
     def find_center(self, im):
         # images.save(im, 'test.png')
         im0 = im.copy()
-        im = images.threshold(im, 140)
+        im = images.threshold(im, 170)
         im = images.dilate(im, (5, 5))
+        im = images.opening(im, (13, 13))
         im = images.opening(im, (21, 21))
         center = images.center_of_mass(im)
         im0 = images.draw_circle(im0, center[0], center[1], 5)
@@ -140,6 +158,12 @@ class Balancer:
                     self.log_direc + '{}.png'.format(self.i))
         self.i += 1
         return center
+
+    # def find_center(self, im):
+    #     threshold = images.threshold(im, 200)
+    #     center = images.center_of_mass(threshold)
+    #     self.i += 1
+    #     return center
 
     def mean_im(self):
         ims = []
@@ -151,8 +175,10 @@ class Balancer:
                                            (255, 152, 255))
             im = images.bgr_2_grayscale(im)
             ims.append(im)
+        images.save(ims[0], self.log_direc + '{}_original.png'.format(self.i))
         mean_im = images.mean(ims)
         mean_im = images.mask_img(mean_im, ring_mask)
+        images.save(mean_im, self.log_direc + '{}_mean.png'.format(self.i))
         return mean_im
 
     def annotate_image(self, im, current_center, mean_center, distance,
@@ -186,4 +212,4 @@ class Balancer:
 
 if __name__ == "__main__":
     balancer = Balancer()
-    balancer.balance(repeats=100)
+    balancer.balance(repeats=3)
